@@ -38,17 +38,6 @@ pipeline {
             }
         }
 
-        stage('🔐 Trivy Scan (Docker Image Vulnerabilities)') {
-            steps {
-                echo "🔎 Running Trivy scan on Docker image..."
-                sh '''
-                    wget -qO trivy.deb https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.51.1_Linux-64bit.deb
-                    sudo dpkg -i trivy.deb || true
-                    trivy image $IMAGE_NAME || true
-                '''
-            }
-        }
-
         stage('📤 Push Docker Image to DockerHub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
