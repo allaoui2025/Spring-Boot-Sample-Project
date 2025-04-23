@@ -2,81 +2,74 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "farid2025/devops-app"
-        CONTAINER_NAME = "devops-app"
-        HOST_PORT = "8081"
-        CONTAINER_PORT = "8080"
+        IMAGE_NAME = 'farid2025/spring-boot-app:latest'
     }
 
     stages {
         stage('📥 Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/allaoui2025/DevOps.git'
+                echo 'Cloning repository...'
+                git 'https://github.com/allaoui2025/Spring-Boot-Sample-Project'
             }
         }
 
-        stage('🔧 Build Maven Project') {
+        stage('📦 Build with Maven') {
             steps {
-                sh 'chmod +x mvnw'
-                sh './mvnw clean package -DskipTests'
-            }
-        }
-
-        stage('🧠 Semgrep Scan (Code Analysis)') {
-            steps {
-                echo "🔍 Running Semgrep scan..."
-                sh '''
-                    pipx install semgrep || true
-                    ~/.local/bin/semgrep --config auto .
-                '''
+                echo 'Building project with Maven...'
+                sh 'mvn clean install'
             }
         }
 
         stage('🐳 Build Docker Image') {
             steps {
-                sh "docker build -t $IMAGE_NAME ."
-            }
-        }
-
-        stage('🔐 Trivy Scan (Docker Image Vulnerabilities)') {
-            steps {
-                echo "🔎 Running Trivy scan on Docker image..."
-                sh '''
-                    wget -qO trivy.deb https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.51.1_Linux-64bit.deb
-                    sudo dpkg -i trivy.deb || true
-                    trivy image $IMAGE_NAME || true
-                '''
+                echo 'Building Docker image...'
+                sh 'docker build -t $IMAGE_NAME .'
             }
         }
 
         stage('📤 Push Docker Image to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                echo 'Pushing Docker image to DockerHub...'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
-                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push $IMAGE_NAME
                     '''
                 }
             }
         }
 
-        stage('🚀 Run Docker Container') {
+        stage('🔎 Semgrep Scan (Code Security)') {
             steps {
+                echo 'Running Semgrep scan...'
                 sh '''
-                    docker rm -f $CONTAINER_NAME || true
-                    docker run -d --name $CONTAINER_NAME -p $HOST_PORT:$CONTAINER_PORT $IMAGE_NAME
+                    pip install pipx || true
+                    pipx install semgrep || true
+                    ~/.local/bin/semgrep scan --config auto .
                 '''
             }
         }
-    }
 
-    post {
-        success {
-            echo '✅ Pipeline finished successfully!'
+        stage('🔐 Trivy Scan (Docker Image Vulnerabilities)') {
+            steps {
+                echo 'Running Trivy scan on Docker image...'
+                sh '''
+                    sudo apt install -y wget apt-transport-https gnupg lsb-release
+                    curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
+                    echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+                    sudo apt update
+                    sudo apt install -y trivy
+                    trivy image $IMAGE_NAME || true
+                '''
+            }
         }
-        failure {
-            echo '❌ Pipeline failed.'
+
+        stage('🚀 Run Docker Container') {
+            steps {
+                echo 'Running Docker container...'
+                sh 'docker run -d -p 8080:8080 $IMAGE_NAME'
+            }
         }
     }
 }
-
+     
