@@ -62,19 +62,6 @@ pipeline {
             }
         }
     }
-}
-
-📌 ملاحظات:
-
-    تأكد أن Jenkins Agent عندو sudo (أو بدل sudo بـ apt مباشرة).
-
-    بدل credentialsId: 'dockerhub' بالـ ID ديالك من Jenkins credentials.
-
-    semgrep كيتثبت باستخدام pipx باش ما يخرّبش السيستم.
-
-إذا بغيتي نعدلو حسب المشروع ديالك أو تزيد تقارير PDF أو Slack notification، قوليا 👍
-
-
 
         stage('📤 Push Docker Image to DockerHub') {
             steps {
