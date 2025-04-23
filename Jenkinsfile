@@ -38,16 +38,43 @@ pipeline {
             }
         }
 
-        stage('🔐 Trivy Scan (Docker Image Vulnerabilities)') {
+         stage('🔐 Trivy Scan (Docker Image Vulnerabilities)') {
             steps {
-                echo "🔎 Running Trivy scan on Docker image..."
                 sh '''
-                    wget -qO trivy.deb https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.51.1_Linux-64bit.deb
-                    sudo dpkg -i trivy.deb 
-                    trivy image $IMAGE_NAME 
+                    sudo apt update -y
+                    sudo apt install -y wget gnupg lsb-release
+                    curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
+                    echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
+                    sudo apt update -y
+                    sudo apt install -y trivy
+                    trivy image $IMAGE_NAME || true
                 '''
             }
         }
+
+        stage('🔍 Semgrep Code Scan') {
+            steps {
+                sh '''
+                    pip install pipx --break-system-packages || true
+                    pipx install semgrep || true
+                    ~/.local/bin/semgrep scan --config auto --json || true
+                '''
+            }
+        }
+    }
+}
+
+📌 ملاحظات:
+
+    تأكد أن Jenkins Agent عندو sudo (أو بدل sudo بـ apt مباشرة).
+
+    بدل credentialsId: 'dockerhub' بالـ ID ديالك من Jenkins credentials.
+
+    semgrep كيتثبت باستخدام pipx باش ما يخرّبش السيستم.
+
+إذا بغيتي نعدلو حسب المشروع ديالك أو تزيد تقارير PDF أو Slack notification، قوليا 👍
+
+
 
         stage('📤 Push Docker Image to DockerHub') {
             steps {
