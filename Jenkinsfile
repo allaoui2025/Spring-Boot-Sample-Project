@@ -1,26 +1,41 @@
- pipeline {
+pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "farid2025/springboot-app:latest"
+        IMAGE_NAME = 'farid2025/spring-boot-sample-app:latest'
+    }
+
+    tools {
+        jdk 'jdk11' // تأكد من أن jdk11 متسجل في Jenkins
+        maven 'maven3' // تأكد من أن maven3 متسجل أيضا
     }
 
     stages {
+
+        stage('🔁 Clone Repository') {
+            steps {
+                echo '📥 Cloning repository...'
+                checkout scm
+            }
+        }
+
         stage('📦 Build Maven Project') {
             steps {
+                echo '🔧 Building with Maven...'
                 sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('🐳 Build Docker Image') {
             steps {
+                echo '🐋 Building Docker image...'
                 sh 'docker build -t $IMAGE_NAME .'
             }
         }
 
         stage('📤 Push Docker Image to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push $IMAGE_NAME
@@ -31,27 +46,24 @@
 
         stage('🔐 Trivy Scan (Docker Image Vulnerabilities)') {
             steps {
+                echo '🔎 Running Trivy scan on Docker image...'
                 sh '''
-                    sudo apt update -y
-                    sudo apt install -y wget gnupg lsb-release
-                    curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy-archive-keyring.gpg
-                    echo "deb [signed-by=/usr/share/keyrings/trivy-archive-keyring.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
-                    sudo apt update -y
-                    sudo apt install -y trivy
+                    apt-get update && apt-get install -y wget dpkg
+                    wget -q https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.51.1_Linux-64bit.deb
+                    dpkg -i trivy_0.51.1_Linux-64bit.deb || true
                     trivy image $IMAGE_NAME || true
                 '''
             }
         }
 
-        stage('🔍 Semgrep Code Scan') {
+        stage('🧪 Semgrep Scan (Code Security)') {
             steps {
+                echo '🔍 Running Semgrep scan...'
                 sh '''
-                    pip install pipx --break-system-packages || true
                     pipx install semgrep || true
-                    ~/.local/bin/semgrep scan --config auto --json || true
+                    semgrep --config=auto --error || true
                 '''
             }
         }
     }
 }
-
