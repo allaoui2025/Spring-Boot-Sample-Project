@@ -61,7 +61,6 @@ pipeline {
     }
 }
 stages {
-    ...
     stage('🧠 Semgrep Code Scan') {
         steps {
             sh 'semgrep --config=auto --error'
@@ -73,6 +72,5 @@ stages {
             sh 'trivy image --severity CRITICAL,HIGH --no-progress $IMAGE_NAME || true'
         }
     }
-    ...
 }
 
