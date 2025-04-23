@@ -6,34 +6,31 @@ pipeline {
     }
 
     tools {
-        jdk 'jdk11' // تأكد من أن jdk11 متسجل في Jenkins
-        maven 'maven3' // تأكد من أن maven3 متسجل أيضا
+        jdk 'jdk11'
+        maven 'maven3'
     }
 
     stages {
 
-        stage('🔁 Clone Repository') {
+        stage('📥 Clone Repository') {
             steps {
-                echo '📥 Cloning repository...'
                 checkout scm
             }
         }
 
-        stage('📦 Build Maven Project') {
+        stage('📦 Build with Maven') {
             steps {
-                echo '🔧 Building with Maven...'
                 sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('🐳 Build Docker Image') {
             steps {
-                echo '🐋 Building Docker image...'
                 sh 'docker build -t $IMAGE_NAME .'
             }
         }
 
-        stage('📤 Push Docker Image to DockerHub') {
+        stage('📤 Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
@@ -44,24 +41,20 @@ pipeline {
             }
         }
 
-        stage('🔐 Trivy Scan (Docker Image Vulnerabilities)') {
+        stage('🔍 Trivy Scan') {
             steps {
-                echo '🔎 Running Trivy scan on Docker image...'
                 sh '''
-                    apt-get update && apt-get install -y wget dpkg
-                    wget -q https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.51.1_Linux-64bit.deb
-                    dpkg -i trivy_0.51.1_Linux-64bit.deb || true
+                    curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
                     trivy image $IMAGE_NAME || true
                 '''
             }
         }
 
-        stage('🧪 Semgrep Scan (Code Security)') {
+        stage('🛡️ Semgrep Scan') {
             steps {
-                echo '🔍 Running Semgrep scan...'
                 sh '''
-                    pipx install semgrep || true
-                    semgrep --config=auto --error || true
+                    pip install --break-system-packages semgrep || true
+                    semgrep scan --config=auto --error || true
                 '''
             }
         }
