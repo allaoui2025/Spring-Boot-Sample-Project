@@ -60,3 +60,19 @@ pipeline {
         }
     }
 }
+stages {
+    ...
+    stage('🧠 Semgrep Code Scan') {
+        steps {
+            sh 'semgrep --config=auto --error'
+        }
+    }
+
+    stage('🔒 Trivy Vulnerability Scan') {
+        steps {
+            sh 'trivy image --severity CRITICAL,HIGH --no-progress $IMAGE_NAME || true'
+        }
+    }
+    ...
+}
+
