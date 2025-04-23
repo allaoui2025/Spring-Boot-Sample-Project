@@ -1,15 +1,18 @@
-FROM openjdk:8-jdk-alpine as build
+# مرحلة البناء
+FROM eclipse-temurin:8-jdk-alpine as build
 WORKDIR /workspace/app
 
 COPY mvnw .
 COPY .mvn .mvn
 COPY pom.xml .
-COPY src src
+RUN ./mvnw dependency:go-offline -B
 
-RUN ./mvnw package
+COPY src src
+RUN ./mvnw package -DskipTests
 RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../*.jar)
 
-FROM openjdk:8-jdk-alpine
+# مرحلة التشغيل
+FROM eclipse-temurin:8-jdk-alpine
 VOLUME /tmp
 ARG DEPENDENCY=/workspace/app/target/dependency
 COPY --from=build ${DEPENDENCY}/BOOT-INF/lib /app/lib
