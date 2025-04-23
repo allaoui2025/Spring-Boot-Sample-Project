@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "farid2025/devops-app"
         CONTAINER_NAME = "devops-app"
-        HOST_PORT = "8081" // استعملنا 8081 باش نتفاداو التعارض
+        HOST_PORT = "8081"
         CONTAINER_PORT = "8080"
     }
 
@@ -22,15 +22,35 @@ pipeline {
             }
         }
 
+        stage('🧠 Semgrep Scan (Code Analysis)') {
+            steps {
+                echo "🔍 Running Semgrep scan..."
+                sh '''
+                    pipx install semgrep || true
+                    ~/.local/bin/semgrep --config auto .
+                '''
+            }
+        }
+
         stage('🐳 Build Docker Image') {
             steps {
                 sh "docker build -t $IMAGE_NAME ."
             }
         }
 
+        stage('🔐 Trivy Scan (Docker Image Vulnerabilities)') {
+            steps {
+                echo "🔎 Running Trivy scan on Docker image..."
+                sh '''
+                    wget -qO trivy.deb https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.51.1_Linux-64bit.deb
+                    sudo dpkg -i trivy.deb || true
+                    trivy image $IMAGE_NAME || true
+                '''
+            }
+        }
+
         stage('📤 Push Docker Image to DockerHub') {
             steps {
-                echo "🚀 Pushing Docker image to DockerHub..."
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     sh '''
                         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
@@ -42,7 +62,6 @@ pipeline {
 
         stage('🚀 Run Docker Container') {
             steps {
-                echo "🧹 Cleaning old container if exists, then running new container on port ${HOST_PORT}"
                 sh '''
                     docker rm -f $CONTAINER_NAME || true
                     docker run -d --name $CONTAINER_NAME -p $HOST_PORT:$CONTAINER_PORT $IMAGE_NAME
@@ -57,19 +76,6 @@ pipeline {
         }
         failure {
             echo '❌ Pipeline failed.'
-        }
-    }
-}
-stages {
-    stage('🧠 Semgrep Code Scan') {
-        steps {
-            sh 'semgrep --config=auto --error'
-        }
-    }
-
-    stage('🔒 Trivy Vulnerability Scan') {
-        steps {
-            sh 'trivy image --severity CRITICAL,HIGH --no-progress $IMAGE_NAME || true'
         }
     }
 }
