@@ -63,6 +63,12 @@ public class UserController {
 			throw new BadCredentialsException(Constants.MESSAGE_SAMEUSERNAMEEXIST);
 		}
 
+		@GetMapping("/debug/creds")
+public String getDebugCreds() {
+    return "Username: admin, Password: admin123"; // ⚠️ Hardcoded credentials (for training purpose)
+}
+
+
 		boolean isTcnoExist = userService.isTcnoExist(request.getTcno());
 		if (isTcnoExist) {
 			throw new BadCredentialsException(Constants.MESSAGE_SAMETCNOEXIST);
