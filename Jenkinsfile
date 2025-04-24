@@ -2,46 +2,48 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USERNAME = 'farid2025'
-        IMAGE_NAME = 'springboot-app'
+        IMAGE_NAME = "farid2025/devops-app"
+        CONTAINER_NAME = "devops-app"
+        HOST_PORT = "8081"
+        CONTAINER_PORT = "8080"
     }
 
     stages {
         stage('📥 Clone Repository') {
             steps {
-                git 'https://github.com/allaoui2025/Spring-Boot-Sample-Project'
+                git branch: 'main', url: 'https://github.com/allaoui2025/DevOps.git'
             }
         }
 
         stage('🔧 Build Maven Project') {
             steps {
-                sh 'mvn clean install'
+                sh 'chmod +x mvnw'
+                sh './mvnw clean package -DskipTests'
             }
         }
 
-        stage('🔍 Semgrep (OWASP Rules)') {
+        stage('🧠 Semgrep Scan (Code Analysis)') {
             steps {
-                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                    sh '''
+                echo "🔍 Running Semgrep scan..."
+                sh '''
                     pipx install semgrep || true
-                    ~/.local/bin/semgrep --config p/owasp-top-ten .
-                    '''
-                }
+                    ~/.local/bin/semgrep --config auto .
+                '''
             }
         }
 
         stage('🐳 Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKERHUB_USERNAME/$IMAGE_NAME .'
+                sh "docker build -t $IMAGE_NAME ."
             }
         }
 
         stage('📤 Push Docker Image to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     sh '''
-                    echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
-                    docker push $DOCKERHUB_USERNAME/$IMAGE_NAME
+                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                        docker push $IMAGE_NAME
                     '''
                 }
             }
@@ -50,18 +52,19 @@ pipeline {
         stage('🚀 Run Docker Container') {
             steps {
                 sh '''
-                docker run -d -p 8080:8080 --name springboot-container $DOCKERHUB_USERNAME/$IMAGE_NAME || true
+                    docker rm -f $CONTAINER_NAME || true
+                    docker run -d --name $CONTAINER_NAME -p $HOST_PORT:$CONTAINER_PORT $IMAGE_NAME
                 '''
             }
         }
     }
 
     post {
-        failure {
-            echo "❌ Pipeline failed!"
-        }
         success {
-            echo "✅ Pipeline completed successfully!"
+            echo '✅ Pipeline finished successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed.'
         }
     }
 }
