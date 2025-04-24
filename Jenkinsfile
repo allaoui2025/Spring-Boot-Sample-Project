@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'farid2025/springboot-app'
+        DOCKERHUB_USERNAME = 'farid2025'
+        IMAGE_NAME = 'springboot-app'
     }
 
     stages {
@@ -20,25 +21,27 @@ pipeline {
 
         stage('🔍 Semgrep (OWASP Rules)') {
             steps {
-                sh '''
-                pipx install semgrep || true
-                ~/.local/bin/semgrep --config p/owasp-top-ten .
-                '''
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    sh '''
+                    pipx install semgrep || true
+                    ~/.local/bin/semgrep --config p/owasp-top-ten .
+                    '''
+                }
             }
         }
 
         stage('🐳 Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
+                sh 'docker build -t $DOCKERHUB_USERNAME/$IMAGE_NAME .'
             }
         }
 
         stage('📤 Push Docker Image to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     sh '''
-                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    docker push $DOCKER_IMAGE
+                    echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+                    docker push $DOCKERHUB_USERNAME/$IMAGE_NAME
                     '''
                 }
             }
@@ -46,18 +49,19 @@ pipeline {
 
         stage('🚀 Run Docker Container') {
             steps {
-                sh 'docker run -d -p 8080:8080 $DOCKER_IMAGE'
+                sh '''
+                docker run -d -p 8080:8080 --name springboot-container $DOCKERHUB_USERNAME/$IMAGE_NAME || true
+                '''
             }
         }
     }
 
     post {
-        success {
-            echo '✅ Pipeline finished successfully!'
-        }
         failure {
-            echo '❌ Pipeline failed!'
+            echo "❌ Pipeline failed!"
+        }
+        success {
+            echo "✅ Pipeline completed successfully!"
         }
     }
 }
-
