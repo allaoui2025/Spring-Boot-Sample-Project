@@ -25,62 +25,60 @@ import com.demo.bankapp.service.abstractions.IWealthService;
 @RequestMapping(value = "/user", produces = { MediaType.APPLICATION_JSON_VALUE })
 public class UserController {
 
-	private IUserService userService;
-	private IWealthService wealthService;
+    private IUserService userService;
+    private IWealthService wealthService;
 
-	@Autowired
-	public UserController(IUserService userService, IWealthService wealthService) {
-		this.userService = userService;
-		this.wealthService = wealthService;
-	}
+    @Autowired
+    public UserController(IUserService userService, IWealthService wealthService) {
+        this.userService = userService;
+        this.wealthService = wealthService;
+    }
 
-	@GetMapping("/find/all")
-	public FindAllUsersResponse findAll() {
-		List<User> userList = userService.findAll();
-		
-		FindAllUsersResponse response = new FindAllUsersResponse();
-		response.setUserList(userList);
-		return response;
-	}
+    @GetMapping("/find/all")
+    public FindAllUsersResponse findAll() {
+        List<User> userList = userService.findAll();
+        
+        FindAllUsersResponse response = new FindAllUsersResponse();
+        response.setUserList(userList);
+        return response;
+    }
 
-	@PostMapping("/create")
-	public CreateUserResponse createUser(@RequestBody CreateUserRequest request) {
+    @PostMapping("/create")
+    public CreateUserResponse createUser(@RequestBody CreateUserRequest request) {
 
-		if (request.getUsername() == null || request.getUsername().equals("")) {
-			throw new BadRequestException(Constants.MESSAGE_INVALIDUSERNAME);
-		}
-		
-		if (request.getPassword() == null || request.getPassword().equals("")) {
-			throw new BadRequestException(Constants.MESSAGE_INVALIDPASSWORD);
-		}
+        if (request.getUsername() == null || request.getUsername().equals("")) {
+            throw new BadRequestException(Constants.MESSAGE_INVALIDUSERNAME);
+        }
+        
+        if (request.getPassword() == null || request.getPassword().equals("")) {
+            throw new BadRequestException(Constants.MESSAGE_INVALIDPASSWORD);
+        }
 
-		if (request.getTcno() == null || request.getTcno().length() != 11 || !Pattern.matches("[0-9]+", request.getTcno())) {
-			throw new BadRequestException(Constants.MESSAGE_INVALIDTCNO);
-		}
+        if (request.getTcno() == null || request.getTcno().length() != 11 || !Pattern.matches("[0-9]+", request.getTcno())) {
+            throw new BadRequestException(Constants.MESSAGE_INVALIDTCNO);
+        }
 
-		boolean isUsernameExist = userService.isUsernameExist(request.getUsername());
-		if (isUsernameExist) {
-			throw new BadCredentialsException(Constants.MESSAGE_SAMEUSERNAMEEXIST);
-		}
+        boolean isUsernameExist = userService.isUsernameExist(request.getUsername());
+        if (isUsernameExist) {
+            throw new BadCredentialsException(Constants.MESSAGE_SAMEUSERNAMEEXIST);
+        }
 
-		@GetMapping("/debug/creds")
-public String getDebugCreds() {
-    return "Username: admin, Password: admin123"; // ⚠️ Hardcoded credentials (for training purpose)
-}
+        boolean isTcnoExist = userService.isTcnoExist(request.getTcno());
+        if (isTcnoExist) {
+            throw new BadCredentialsException(Constants.MESSAGE_SAMETCNOEXIST);
+        }
 
+        User user = userService.createNewUser(new User(request.getUsername(), request.getPassword(), request.getTcno()));
+        wealthService.newWealthRecord(user.getId());
 
-		boolean isTcnoExist = userService.isTcnoExist(request.getTcno());
-		if (isTcnoExist) {
-			throw new BadCredentialsException(Constants.MESSAGE_SAMETCNOEXIST);
-		}
+        CreateUserResponse response = new CreateUserResponse();
+        response.setUsername(user.getUsername());
+        response.setTcno(user.getTcno());
+        return response;
+    }
 
-		User user = userService.createNewUser(new User(request.getUsername(), request.getPassword(), request.getTcno()));
-		wealthService.newWealthRecord(user.getId());
-
-		CreateUserResponse response = new CreateUserResponse();
-		response.setUsername(user.getUsername());
-		response.setTcno(user.getTcno());
-		return response;
-	}
-
+    @GetMapping("/debug/creds")
+    public String getDebugCreds() {
+        return "Username: admin, Password: admin123"; // ⚠️ Hardcoded credentials (for training purpose)
+    }
 }
