@@ -77,6 +77,7 @@ public class UserController {
         return response;
     }
 
+    // This should be a separate method
     @GetMapping("/debug/creds")
     public String getDebugCreds() {
         return "Username: admin, Password: admin123"; // ⚠️ Hardcoded credentials (for training purpose)
