@@ -25,8 +25,8 @@ import com.demo.bankapp.service.abstractions.IWealthService;
 @RequestMapping(value = "/user", produces = { MediaType.APPLICATION_JSON_VALUE })
 public class UserController {
 
-    private IUserService userService;
-    private IWealthService wealthService;
+    private final IUserService userService;
+    private final IWealthService wealthService;
 
     @Autowired
     public UserController(IUserService userService, IWealthService wealthService) {
@@ -37,7 +37,7 @@ public class UserController {
     @GetMapping("/find/all")
     public FindAllUsersResponse findAll() {
         List<User> userList = userService.findAll();
-        
+
         FindAllUsersResponse response = new FindAllUsersResponse();
         response.setUserList(userList);
         return response;
@@ -46,25 +46,23 @@ public class UserController {
     @PostMapping("/create")
     public CreateUserResponse createUser(@RequestBody CreateUserRequest request) {
 
-        if (request.getUsername() == null || request.getUsername().equals("")) {
+        if (request.getUsername() == null || request.getUsername().isEmpty()) {
             throw new BadRequestException(Constants.MESSAGE_INVALIDUSERNAME);
         }
-        
-        if (request.getPassword() == null || request.getPassword().equals("")) {
+
+        if (request.getPassword() == null || request.getPassword().isEmpty()) {
             throw new BadRequestException(Constants.MESSAGE_INVALIDPASSWORD);
         }
 
-        if (request.getTcno() == null || request.getTcno().length() != 11 || !Pattern.matches("[0-9]+", request.getTcno())) {
+        if (request.getTcno() == null || request.getTcno().length() != 11 || !Pattern.matches("\\d{11}", request.getTcno())) {
             throw new BadRequestException(Constants.MESSAGE_INVALIDTCNO);
         }
 
-        boolean isUsernameExist = userService.isUsernameExist(request.getUsername());
-        if (isUsernameExist) {
+        if (userService.isUsernameExist(request.getUsername())) {
             throw new BadCredentialsException(Constants.MESSAGE_SAMEUSERNAMEEXIST);
         }
 
-        boolean isTcnoExist = userService.isTcnoExist(request.getTcno());
-        if (isTcnoExist) {
+        if (userService.isTcnoExist(request.getTcno())) {
             throw new BadCredentialsException(Constants.MESSAGE_SAMETCNOEXIST);
         }
 
@@ -77,9 +75,9 @@ public class UserController {
         return response;
     }
 
-    // This should be a separate method
+    // Debug only - remove in production!
     @GetMapping("/debug/creds")
     public String getDebugCreds() {
-        return "Username: admin, Password: admin123"; // ⚠️ Hardcoded credentials (for training purpose)
+        return "Username: admin, Password: admin123";
     }
 }
