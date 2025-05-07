@@ -73,7 +73,6 @@ public class UserController {
         response.setUsername(user.getUsername());
         response.setTcno(user.getTcno());
         return response;
-    }
 
     // Debug only - remove in production!
     @GetMapping("/debug/creds")
